@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProFile Insight</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0a0a0a;
+    --surface:   #111111;
+    --card:      #1a1a1a;
+    --border:    #2a2a2a;
+    --border-hi: #3d3d3d;
+    --silver:    #c0c0c0;
+    --silver-lo: #6b6b6b;
+    --silver-hi: #e8e8e8;
+    --white:     #f5f5f5;
+    --accent:    #a8a8a8;
+    --user-bg:   #1e1e1e;
+    --bot-bg:    #141414;
+    --disabled:  #2a2a2a;
+    --radius:    12px;
+    --font-body: 'Inter', sans-serif;
+    --font-disp: 'Space Grotesk', sans-serif;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--white);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── LAYOUT ── */
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-width: 780px;
+    margin: 0 auto;
+  }
+
+  /* ── HERO (shown before upload) ── */
+  #hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 28px;
+    padding: 40px 24px;
+    text-align: center;
+  }
+
+  /* SVG Logo */
+  .logo-wrap {
+    position: relative;
+    width: 96px;
+    height: 96px;
+  }
+  .logo-wrap svg { width: 100%; height: 100%; }
+  .logo-ring {
+    animation: spin 12s linear infinite;
+    transform-origin: center;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .hero-title {
+    font-family: var(--font-disp);
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--silver-hi);
+  }
+  .hero-title span {
+    background: linear-gradient(135deg, #e0e0e0 0%, #808080 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-sub {
+    font-size: 14px;
+    color: var(--silver-lo);
+    max-width: 360px;
+    line-height: 1.7;
+  }
+
+  /* ── UPLOAD ZONE ── */
+  .upload-zone {
+    border: 1.5px dashed var(--border-hi);
+    border-radius: var(--radius);
+    padding: 32px 40px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    width: 100%;
+    max-width: 380px;
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--silver);
+    background: var(--card);
+  }
+  .upload-zone input { display: none; }
+  .upload-icon { color: var(--silver-lo); margin-bottom: 4px; }
+  .upload-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--silver);
+  }
+  .upload-hint {
+    font-size: 12px;
+    color: var(--silver-lo);
+  }
+
+  /* ── STATUS BAR (shown after upload) ── */
+  #status-bar {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  #status-bar.visible { display: flex; }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--silver-lo);
+    flex-shrink: 0;
+  }
+  .status-dot.ready { background: #6fcf97; }
+  .status-dot.loading {
+    background: var(--silver);
+    animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  #status-text { color: var(--silver); flex: 1; }
+  #change-pdf {
+    font-size: 12px;
+    color: var(--silver-lo);
+    background: none;
+    border: 1px solid var(--border-hi);
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  #change-pdf:hover { color: var(--silver); border-color: var(--silver); }
+
+  /* ── CHAT AREA ── */
+  #chat-area {
+    display: none;
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 20px;
+    scroll-behavior: smooth;
+  }
+  #chat-area.visible { display: block; }
+  #chat-area::-webkit-scrollbar { width: 4px; }
+  #chat-area::-webkit-scrollbar-track { background: transparent; }
+  #chat-area::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+
+  /* ── MESSAGES ── */
+  .msg {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    animation: fadeUp 0.2s ease;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .msg.user { flex-direction: row-reverse; }
+
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-disp);
+  }
+  .avatar.bot {
+    background: var(--card);
+    border: 1px solid var(--border-hi);
+    color: var(--silver);
+  }
+  .avatar.user-av {
+    background: var(--border-hi);
+    color: var(--white);
+  }
+
+  .bubble {
+    max-width: 78%;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .msg.bot .bubble {
+    background: var(--bot-bg);
+    border: 1px solid var(--border);
+    color: var(--silver-hi);
+    border-top-left-radius: 4px;
+  }
+
+  /* Markdown inside bot bubbles */
+  .bot-content p { margin: 0 0 0.75em; }
+  .bot-content p:last-child { margin-bottom: 0; }
+  .bot-content ul, .bot-content ol {
+    margin: 0.5em 0 0.75em;
+    padding-left: 1.4em;
+  }
+  .bot-content li { margin-bottom: 0.35em; }
+  .bot-content li:last-child { margin-bottom: 0; }
+  .bot-content strong, .bot-content b { color: var(--white); font-weight: 600; }
+  .bot-content em, .bot-content i { font-style: italic; color: var(--silver); }
+  .bot-content u { text-decoration: underline; text-underline-offset: 2px; }
+  .bot-content h3, .bot-content h4 {
+    font-family: var(--font-disp);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+    margin: 0.85em 0 0.4em;
+  }
+  .bot-content h3:first-child, .bot-content h4:first-child { margin-top: 0; }
+  .bot-content code {
+    font-size: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  .bot-content pre {
+    margin: 0.5em 0;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+  .bot-content pre code { border: none; padding: 0; background: none; }
+  .bot-content blockquote {
+    margin: 0.5em 0;
+    padding-left: 12px;
+    border-left: 3px solid var(--border-hi);
+    color: var(--silver);
+  }
+  .bot-content hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0.75em 0;
+  }
+  .bot-content a {
+    color: var(--silver-hi);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .msg.user .bubble {
+    background: var(--user-bg);
+    border: 1px solid var(--border-hi);
+    color: var(--white);
+    border-top-right-radius: 4px;
+  }
+
+  /* Source badge */
+  .source-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--silver-lo);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 20px;
+  }
+
+  /* Typing indicator */
+  .typing-dots {
+    display: flex;
+    gap: 4px;
+    padding: 4px 0;
+  }
+  .typing-dots span {
+    width: 6px; height: 6px;
+    background: var(--silver-lo);
+    border-radius: 50%;
+    animation: bounce 1.2s ease-in-out infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%,80%,100% { transform: translateY(0); }
+    40%          { transform: translateY(-6px); }
+  }
+
+  /* ── INPUT AREA ── */
+  #input-area {
+    padding: 16px 20px 24px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+  }
+
+  .input-wrap {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border-hi);
+    border-radius: 14px;
+    padding: 10px 12px 10px 16px;
+    transition: border-color 0.2s;
+  }
+  .input-wrap:focus-within { border-color: var(--silver); }
+  .input-wrap.disabled {
+    border-color: var(--border);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  #msg-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--white);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.5;
+    resize: none;
+    max-height: 160px;
+    min-height: 24px;
+    overflow-y: auto;
+  }
+  #msg-input::placeholder { color: var(--silver-lo); }
+  #msg-input::-webkit-scrollbar { width: 3px; }
+  #msg-input::-webkit-scrollbar-thumb { background: var(--border-hi); }
+
+  #send-btn {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    border: none;
+    background: var(--silver);
+    color: #000;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s, transform 0.1s;
+  }
+  #send-btn:hover { background: var(--silver-hi); }
+  #send-btn:active { transform: scale(0.94); }
+  #send-btn:disabled {
+    background: var(--border-hi);
+    color: var(--silver-lo);
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .input-hint {
+    font-size: 11px;
+    color: var(--silver-lo);
+    text-align: center;
+    margin-top: 10px;
+  }
+
+  /* ── SUGGESTED QUESTIONS ── */
+  .suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .suggestion-btn {
+    font-size: 12px;
+    color: var(--silver);
+    background: var(--surface);
+    border: 1px solid var(--border-hi);
+    border-radius: 20px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-family: var(--font-body);
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .suggestion-btn:hover {
+    border-color: var(--silver);
+    background: var(--card);
+  }
+  .suggestion-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- STATUS BAR (hidden until PDF loaded) -->
+  <div id="status-bar">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">Processing CV...</span>
+    <button id="change-pdf" onclick="resetApp()">Change PDF</button>
+  </div>
+
+  <!-- HERO (shown before upload) -->
+  <div id="hero">
+
+    <!-- SVG Logo -->
+    <div class="logo-wrap">
+      <svg viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Outer rotating ring with dashes -->
+        <g class="logo-ring">
+          <circle cx="48" cy="48" r="44" stroke="#3d3d3d" stroke-width="1" stroke-dasharray="4 6"/>
+        </g>
+        <!-- Static outer ring -->
+        <circle cx="48" cy="48" r="38" stroke="#2a2a2a" stroke-width="1.5"/>
+        <!-- Inner filled circle -->
+        <circle cx="48" cy="48" r="30" fill="#111111" stroke="#444" stroke-width="1"/>
+        <!-- Document icon -->
+        <rect x="34" y="28" width="20" height="26" rx="2" fill="none" stroke="#c0c0c0" stroke-width="1.5"/>
+        <line x1="38" y1="35" x2="50" y2="35" stroke="#6b6b6b" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="38" y1="40" x2="50" y2="40" stroke="#6b6b6b" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="38" y1="45" x2="45" y2="45" stroke="#6b6b6b" stroke-width="1.5" stroke-linecap="round"/>
+        <!-- Insight spark -->
+        <circle cx="58" cy="58" r="10" fill="#1a1a1a" stroke="#444" stroke-width="1"/>
+        <path d="M55 58 L57.5 55 L60 58 L57.5 61 Z" fill="#c0c0c0"/>
+        <!-- Corner dots -->
+        <circle cx="48" cy="10" r="2" fill="#555"/>
+        <circle cx="48" cy="86" r="2" fill="#555"/>
+        <circle cx="10" cy="48" r="2" fill="#555"/>
+        <circle cx="86" cy="48" r="2" fill="#555"/>
+      </svg>
+    </div>
+
+    <div>
+      <div class="hero-title"><span>ProFile Insight</span></div>
+    </div>
+
+    <p class="hero-sub">Upload a CV or resume and ask anything about it — experience, skills, projects, gaps, and more.</p>
+
+    <!-- Upload Zone -->
+    <label class="upload-zone" id="upload-zone">
+      <input type="file" id="pdf-input" accept=".pdf" onchange="handleUpload(this)">
+      <div class="upload-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <span class="upload-label">Upload CV / Resume</span>
+      <span class="upload-hint">PDF only · drag & drop or click</span>
+    </label>
+
+  </div>
+
+  <!-- CHAT AREA (hidden until PDF loaded) -->
+  <div id="chat-area"></div>
+
+  <!-- INPUT AREA -->
+  <div id="input-area">
+    <div class="input-wrap disabled" id="input-wrap">
+      <textarea
+        id="msg-input"
+        rows="1"
+        placeholder="Upload a CV to start asking questions..."
+        disabled
+        onkeydown="handleKey(event)"
+        oninput="autoResize(this)"
+      ></textarea>
+      <button id="send-btn" disabled onclick="sendMessage()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="19" x2="12" y2="5"/>
+          <polyline points="5 12 12 5 19 12"/>
+        </svg>
+      </button>
+    </div>
+    <p class="input-hint" id="input-hint">Upload a CV above to begin</p>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+<script>
+  let sessionId = null;
+  let isThinking = false;
+
+  marked.setOptions({ breaks: true, gfm: true });
+
+  const MARKDOWN_ALLOWED_TAGS = [
+    'p', 'br', 'strong', 'em', 'b', 'i', 'u', 's', 'del',
+    'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'code', 'pre', 'blockquote', 'hr', 'a'
+  ];
+  const MARKDOWN_ALLOWED_ATTR = ['href', 'target', 'rel'];
+
+  function renderMarkdown(text) {
+    const raw = marked.parse(text || '');
+    return DOMPurify.sanitize(raw, {
+      ALLOWED_TAGS: MARKDOWN_ALLOWED_TAGS,
+      ALLOWED_ATTR: MARKDOWN_ALLOWED_ATTR,
+    });
+  }
+
+  function formatBotContent(content, mode = 'markdown') {
+    if (mode === 'html') return content;
+    if (mode === 'plain') return escapeHtml(content);
+    return renderMarkdown(content);
+  }
+
+  // ── Drag & drop ──
+  const zone = document.getElementById('upload-zone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type === 'application/pdf') processFile(file);
+  });
+
+  function handleUpload(input) {
+    if (input.files[0]) processFile(input.files[0]);
+  }
+
+  async function processFile(file) {
+    // Show status bar, hide hero
+    document.getElementById('hero').style.display = 'none';
+    const statusBar = document.getElementById('status-bar');
+    statusBar.classList.add('visible');
+
+    const dot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    dot.className = 'status-dot loading';
+    statusText.textContent = `Processing "${file.name}"...`;
+
+    // Show chat area
+    const chatArea = document.getElementById('chat-area');
+    chatArea.classList.add('visible');
+
+    try {
+      // ── Upload to FastAPI ──
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      sessionId = data.session_id;
+
+      // Ready
+      dot.className = 'status-dot ready';
+      statusText.textContent = `"${file.name}" ready`;
+
+      // Enable input
+      enableInput();
+
+      // Show welcome + suggestions
+      addBotMessage(
+        `CV loaded. I've analysed <strong>${escapeHtml(file.name)}</strong> and I'm ready to answer your questions.`,
+        null,
+        true,
+        'html'
+      );
+
+    } catch (err) {
+      dot.className = 'status-dot';
+      statusText.textContent = 'Upload failed — try again';
+      console.error(err);
+    }
+  }
+
+  function setInputActive(active) {
+    const wrap = document.getElementById('input-wrap');
+    const input = document.getElementById('msg-input');
+    const btn = document.getElementById('send-btn');
+    const hint = document.getElementById('input-hint');
+
+    if (active) {
+      wrap.classList.remove('disabled');
+      input.disabled = false;
+      btn.disabled = false;
+      input.placeholder = 'Ask anything about this CV...';
+      hint.textContent = 'Press Enter to send · Shift+Enter for new line';
+      input.focus();
+    } else {
+      wrap.classList.add('disabled');
+      input.disabled = true;
+      btn.disabled = true;
+      hint.textContent = 'Waiting for response...';
+    }
+  }
+
+  function enableInput() {
+    setInputActive(true);
+  }
+
+  function resetApp() {
+    sessionId = null;
+    isThinking = false;
+    setInputActive(false);
+    document.getElementById('hero').style.display = 'flex';
+    document.getElementById('status-bar').classList.remove('visible');
+    document.getElementById('chat-area').classList.remove('visible');
+    document.getElementById('chat-area').innerHTML = '';
+
+    const wrap = document.getElementById('input-wrap');
+    const input = document.getElementById('msg-input');
+    const btn = document.getElementById('send-btn');
+    const hint = document.getElementById('input-hint');
+
+    wrap.classList.add('disabled');
+    input.disabled = true;
+    input.placeholder = 'Upload a CV to start asking questions...';
+    input.value = '';
+    btn.disabled = true;
+    hint.textContent = 'Upload a CV above to begin';
+
+    document.getElementById('pdf-input').value = '';
+  }
+
+  // ── Messaging ──
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+  }
+
+  function setSuggestionsActive(active) {
+    document.querySelectorAll('.suggestion-btn').forEach(btn => {
+      btn.disabled = !active;
+    });
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('msg-input');
+    const text = input.value.trim();
+    if (!text || isThinking || !sessionId) return;
+
+    isThinking = true;
+    input.value = '';
+    input.style.height = 'auto';
+    setInputActive(false);
+    setSuggestionsActive(false);
+
+    addUserMessage(text);
+    const typingId = addTyping();
+
+    try {
+      const res = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, question: text })
+      });
+      const data = await res.json();
+      removeTyping(typingId);
+      if (!res.ok) {
+        const detail = typeof data.detail === 'string'
+          ? data.detail
+          : 'Something went wrong. Please try again.';
+        addBotMessage(detail, null, false, 'plain');
+      } else {
+        addBotMessage(data.answer, data.pages || null);
+      }
+    } catch (err) {
+      removeTyping(typingId);
+      addBotMessage('Something went wrong. Please try again.', null, false, 'plain');
+    } finally {
+      isThinking = false;
+      setInputActive(true);
+      setSuggestionsActive(true);
+    }
+  }
+
+  function addUserMessage(text) {
+    const area = document.getElementById('chat-area');
+    const msg = document.createElement('div');
+    msg.className = 'msg user';
+    msg.innerHTML = `
+      <div class="avatar user-av">You</div>
+      <div class="bubble">${escapeHtml(text)}</div>
+    `;
+    area.appendChild(msg);
+    scrollBottom();
+  }
+
+  function addBotMessage(content, pages = null, showSuggestions = false, contentMode = 'markdown') {
+    const area = document.getElementById('chat-area');
+    const msg = document.createElement('div');
+    msg.className = 'msg bot';
+
+    const bodyClass = contentMode === 'markdown' ? 'bot-content' : '';
+    const rendered = formatBotContent(content, contentMode);
+
+    let extra = '';
+    if (pages && pages.length > 0) {
+      extra = `<div class="source-tag">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Pages ${pages.join(', ')}
+      </div>`;
+    }
+
+    let suggestions = '';
+    if (showSuggestions) {
+      suggestions = `
+        <div class="suggestions" style="margin-top:14px;">
+          <button class="suggestion-btn" onclick="quickAsk(this)">What are the key skills?</button>
+          <button class="suggestion-btn" onclick="quickAsk(this)">Summarise work experience</button>
+          <button class="suggestion-btn" onclick="quickAsk(this)">List all projects</button>
+          <button class="suggestion-btn" onclick="quickAsk(this)">What is the highest qualification?</button>
+        </div>`;
+    }
+
+    msg.innerHTML = `
+      <div class="avatar bot">PI</div>
+      <div class="bubble">
+        <div class="${bodyClass}">${rendered}</div>${extra}${suggestions}
+      </div>
+    `;
+    area.appendChild(msg);
+    scrollBottom();
+  }
+
+  function quickAsk(btn) {
+    const q = btn.textContent;
+    document.getElementById('msg-input').value = q;
+    sendMessage();
+  }
+
+  function addTyping() {
+    const area = document.getElementById('chat-area');
+    const id = 'typing-' + Date.now();
+    const msg = document.createElement('div');
+    msg.className = 'msg bot';
+    msg.id = id;
+    msg.innerHTML = `
+      <div class="avatar bot">PI</div>
+      <div class="bubble">
+        <div class="typing-dots">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    `;
+    area.appendChild(msg);
+    scrollBottom();
+    return id;
+  }
+
+  function removeTyping(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  }
+
+  function scrollBottom() {
+    const area = document.getElementById('chat-area');
+    area.scrollTop = area.scrollHeight;
+  }
+
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/\n/g, '<br>');
+  }
+</script>
+</body>
+</html>

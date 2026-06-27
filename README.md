@@ -6,6 +6,8 @@
 
 Whether you're a recruiter screening candidates, a hiring manager preparing for an interview, or someone reviewing your own resume, ProFile Insight helps you pull out skills, experience, projects, and qualifications without scrolling through pages manually.
 
+**Live app:** [ProFile Insight](https://profile-insight-production.up.railway.app/)
+
 ---
 
 ## Features
